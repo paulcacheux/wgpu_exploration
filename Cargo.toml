@@ -16,6 +16,9 @@ bytemuck = { version = "1.5", features = ["derive"] }
 memoffset = "0.6"
 once_cell = "1.5"
 image = "0.23"
+imgui = "0.7"
+imgui-winit-support = "0.7"
+imgui-wgpu = "0.14"
 
 [build-dependencies]
 shaderc = "0.7.1"

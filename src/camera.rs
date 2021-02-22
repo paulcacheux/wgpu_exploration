@@ -42,8 +42,8 @@ pub struct CameraController {
     is_left_pressed: bool,
     is_right_pressed: bool,
 
-    yaw: f32,
-    pitch: f32,
+    pub yaw: f32,
+    pub pitch: f32,
 }
 
 impl CameraController {

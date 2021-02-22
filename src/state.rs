@@ -1,4 +1,6 @@
 use cgmath::{InnerSpace, SquareMatrix, Zero};
+use imgui::{im_str, Condition, Context};
+use imgui_wgpu::{Renderer, RendererConfig};
 use wgpu::{
     util::DeviceExt, ColorTargetState, DepthBiasState, DepthStencilState, FragmentState,
     MultisampleState, PrimitiveState, PrimitiveTopology, StencilState, VertexState,
@@ -45,10 +47,12 @@ pub struct State {
 
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
+
+    imgui_renderer: Renderer,
 }
 
 impl State {
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &Window, imgui_context: &mut Context) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
@@ -255,6 +259,16 @@ impl State {
             usage: wgpu::BufferUsage::VERTEX,
         });
 
+        let imgui_renderer = Renderer::new(
+            imgui_context,
+            &device,
+            &queue,
+            RendererConfig {
+                texture_format: swapchain_desc.format,
+                ..Default::default()
+            },
+        );
+
         State {
             surface,
             device,
@@ -281,6 +295,8 @@ impl State {
 
             instances,
             instance_buffer,
+
+            imgui_renderer,
         }
     }
 
@@ -344,7 +360,7 @@ impl State {
         );
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, imgui_ui: imgui::Ui) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swapchain.get_current_frame()?.output;
 
         let mut encoder = self
@@ -388,9 +404,52 @@ impl State {
             render_pass.draw_indexed(0..self.indices_count, 0, 0..self.instances.len() as _);
         }
 
+        {
+            let mut imgui_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Imgui render pass"),
+                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                    attachment: &frame.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                }],
+                depth_stencil_attachment: None,
+            });
+            self.imgui_renderer
+                .render(
+                    imgui_ui.render(),
+                    &self.queue,
+                    &self.device,
+                    &mut imgui_pass,
+                )
+                .expect("Failed to render UI!");
+        }
+
         self.queue.submit(Some(encoder.finish()));
 
         Ok(())
+    }
+
+    pub fn build_ui(&self, ui: &imgui::Ui) {
+        let window = imgui::Window::new(im_str!("WGPU Exploration"));
+        window
+            .size([150.0, 250.0], Condition::FirstUseEver)
+            .position([0.0, 0.0], Condition::FirstUseEver)
+            .build(&ui, || {
+                ui.text(im_str!("Camera"));
+                ui.text(im_str!("Eye:"));
+                ui.text(im_str!("\tx: {}", self.camera.eye.x));
+                ui.text(im_str!("\ty: {}", self.camera.eye.y));
+                ui.text(im_str!("\tz: {}", self.camera.eye.z));
+                ui.text(im_str!("Front:"));
+                ui.text(im_str!("\tx: {}", self.camera.front.x));
+                ui.text(im_str!("\ty: {}", self.camera.front.y));
+                ui.text(im_str!("\tz: {}", self.camera.front.z));
+                ui.text(im_str!("Yaw: {:?}", self.camera_controller.yaw));
+                ui.text(im_str!("Pitch: {:?}", self.camera_controller.pitch));
+            });
     }
 }
 #[repr(C)]
