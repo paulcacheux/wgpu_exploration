@@ -2,7 +2,7 @@ use futures::executor::block_on;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::{Fullscreen, WindowBuilder},
+    window::WindowBuilder,
 };
 
 mod camera;
@@ -18,7 +18,6 @@ fn main() {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_fullscreen(Some(Fullscreen::Borderless(None)))
         .with_title("WGPU Learning")
         .build(&event_loop)
         .expect("Failed to create window");

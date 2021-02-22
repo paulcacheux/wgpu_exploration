@@ -388,7 +388,7 @@ impl State {
             render_pass.draw_indexed(0..self.indices_count, 0, 0..self.instances.len() as _);
         }
 
-        self.queue.submit(vec![encoder.finish()]);
+        self.queue.submit(Some(encoder.finish()));
 
         Ok(())
     }
