@@ -9,6 +9,7 @@ use winit::{
 mod camera;
 mod imgui_state;
 mod instance;
+mod model;
 mod state;
 mod texture;
 mod vertex;

@@ -17,8 +17,9 @@ use crate::{
 };
 use crate::{
     instance::{Instance, InstanceRaw},
-    vertex::{Vertex, INDICES, VERTICES},
+    model::Model,
 };
+use crate::{model::DrawModel, vertex::ModelVertex};
 
 pub struct State {
     surface: wgpu::Surface,
@@ -29,17 +30,11 @@ pub struct State {
     pub window_size: PhysicalSize<u32>,
 
     render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    indices_count: u32,
-
-    texture_bind_group: wgpu::BindGroup,
     uniform_bind_group: wgpu::BindGroup,
-
-    _tree_texture: Texture,
     depth_texture: Texture,
-
     uniform_buffer: wgpu::Buffer,
+
+    model: Model,
 
     uniforms: Uniforms,
     camera: Camera,
@@ -88,20 +83,6 @@ impl State {
 
         let swapchain = device.create_swap_chain(&surface, &swapchain_desc);
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsage::VERTEX,
-        });
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsage::INDEX,
-        });
-
-        let texture = Texture::new("textures/happy-tree.png", &device, &queue);
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -127,21 +108,6 @@ impl State {
                 ],
                 label: Some("Texture bind group layout"),
             });
-
-        let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&texture.sampler),
-                },
-            ],
-            label: Some("Texture bind group"),
-        });
 
         let camera = Camera {
             eye: (0.0, 1.0, 2.0).into(),
@@ -192,6 +158,14 @@ impl State {
             label: Some("Uniform bind group"),
         });
 
+        let model = Model::open(
+            "res/cube/cube.obj",
+            &device,
+            &queue,
+            &texture_bind_group_layout,
+        )
+        .expect("Failed to open model");
+
         let depth_texture =
             Texture::create_depth_texture(&device, &swapchain_desc, "Depth texture");
 
@@ -217,7 +191,7 @@ impl State {
             vertex: VertexState {
                 module: &vs_module,
                 entry_point: "main",
-                buffers: &[Vertex::desc(), InstanceRaw::desc()],
+                buffers: &[ModelVertex::desc(), InstanceRaw::desc()],
             },
             fragment: Some(FragmentState {
                 module: &fs_module,
@@ -276,18 +250,13 @@ impl State {
             swapchain_desc,
             swapchain,
             window_size: size,
+
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            indices_count: INDICES.len() as _,
-
-            texture_bind_group,
             uniform_bind_group,
-
             uniform_buffer,
-
-            _tree_texture: texture,
             depth_texture,
+
+            model,
 
             uniforms,
             camera,
@@ -312,7 +281,7 @@ impl State {
         for z in 0..INSTANCE_PER_ROW {
             for x in 0..INSTANCE_PER_ROW {
                 let position =
-                    cgmath::Vector3::new(x as f32, 0.0, z as f32) - INSTANCE_DISPLACEMENT;
+                    cgmath::Vector3::new(x as f32, 0.0, z as f32) * 3.0 - INSTANCE_DISPLACEMENT;
 
                 let rotation_axis = if position.is_zero() {
                     cgmath::Vector3::unit_z()
@@ -396,12 +365,17 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
-            render_pass.set_bind_group(1, &self.uniform_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.indices_count, 0, 0..self.instances.len() as _);
+            for mesh in &self.model.meshes {
+                let material = &self.model.materials[mesh.material_index];
+                render_pass.draw_mesh_instanced(
+                    mesh,
+                    material,
+                    &self.uniform_bind_group,
+                    0..self.instances.len() as _,
+                );
+            }
         }
 
         {

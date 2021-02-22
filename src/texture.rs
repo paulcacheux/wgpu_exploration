@@ -1,4 +1,6 @@
-use image::{io::Reader as ImageReader, GenericImageView};
+use std::path::Path;
+
+use image::{EncodableLayout, GenericImageView, ImageResult};
 use wgpu::{Device, Queue};
 
 pub struct Texture {
@@ -8,14 +10,10 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(path: &str, device: &Device, queue: &Queue) -> Self {
-        let texture_reader = ImageReader::open(path)
-            .expect("Failed to read texture")
-            .with_guessed_format()
-            .expect("Failed to guess format");
-        let texture_image = texture_reader.decode().expect("Failed to decode image");
-        let texture_rgba = texture_image.as_rgba8().unwrap();
+    pub fn open<P: AsRef<Path>>(path: P, device: &Device, queue: &Queue) -> ImageResult<Self> {
+        let texture_image = image::open(path)?;
         let texture_dimensions = texture_image.dimensions();
+        let texture_rgba = texture_image.to_rgba8();
 
         let texture_size = wgpu::Extent3d {
             width: texture_dimensions.0,
@@ -38,7 +36,7 @@ impl Texture {
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
             },
-            texture_rgba,
+            texture_rgba.as_bytes(),
             wgpu::TextureDataLayout {
                 offset: 0,
                 bytes_per_row: 4 * texture_dimensions.0,
@@ -59,11 +57,11 @@ impl Texture {
             ..Default::default()
         });
 
-        Texture {
+        Ok(Texture {
             texture,
             view: texture_view,
             sampler: texture_sampler,
-        }
+        })
     }
 
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float; // 1.
