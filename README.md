@@ -1,3 +1,3 @@
 # WGPU Exploration, in Rust
 
-Exploration projet to learn about WGPU in Rust.
+Exploration project to learn about WGPU in Rust.
