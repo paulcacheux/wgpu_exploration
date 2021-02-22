@@ -402,7 +402,7 @@ impl State {
         Ok(())
     }
 
-    pub fn build_ui(&self, ui: &imgui::Ui) {
+    pub fn build_ui(&self, ui: &imgui::Ui, framerate: f32) {
         let window = imgui::Window::new(im_str!("Camera"));
         window
             .size([150.0, 250.0], Condition::FirstUseEver)
@@ -418,6 +418,8 @@ impl State {
                 ui.text(im_str!("\tz: {}", self.camera.front.z));
                 ui.text(im_str!("Yaw: {:?}", self.camera_controller.yaw));
                 ui.text(im_str!("Pitch: {:?}", self.camera_controller.pitch));
+                ui.separator();
+                ui.text(im_str!("FPS: {}", framerate));
             });
     }
 }

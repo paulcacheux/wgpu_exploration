@@ -64,8 +64,9 @@ fn main() {
                 state.handle_device_event(&event);
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
+                let framerate = imgui_state.context.io_mut().framerate;
                 let ui = imgui_state.context.frame();
-                state.build_ui(&ui);
+                state.build_ui(&ui, framerate);
                 imgui_state.platform.prepare_render(&ui, &window);
 
                 match state.render(ui) {
