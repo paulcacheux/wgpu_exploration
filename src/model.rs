@@ -123,10 +123,18 @@ impl Model {
 
 pub trait DrawModel<'b> {
     fn draw_mesh(&mut self, mesh: &'b Mesh, material: &'b Material, uniforms: &'b wgpu::BindGroup);
+    fn draw_model(&mut self, model: &'b Model, uniforms: &'b wgpu::BindGroup);
+
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'b Mesh,
         material: &'b Material,
+        uniforms: &'b wgpu::BindGroup,
+        instances: Range<u32>,
+    );
+    fn draw_model_instanced(
+        &mut self,
+        model: &'b Model,
         uniforms: &'b wgpu::BindGroup,
         instances: Range<u32>,
     );
@@ -138,6 +146,10 @@ where
 {
     fn draw_mesh(&mut self, mesh: &'b Mesh, material: &'b Material, uniforms: &'b wgpu::BindGroup) {
         self.draw_mesh_instanced(mesh, material, uniforms, 0..1);
+    }
+
+    fn draw_model(&mut self, model: &'b Model, uniforms: &'b wgpu::BindGroup) {
+        self.draw_model_instanced(model, uniforms, 0..1)
     }
 
     fn draw_mesh_instanced(
@@ -152,5 +164,17 @@ where
         self.set_bind_group(0, &material.bind_group, &[]);
         self.set_bind_group(1, &uniforms, &[]);
         self.draw_indexed(0..mesh.index_count, 0, instances);
+    }
+
+    fn draw_model_instanced(
+        &mut self,
+        model: &'b Model,
+        uniforms: &'b wgpu::BindGroup,
+        instances: Range<u32>,
+    ) {
+        for mesh in &model.meshes {
+            let material = &model.materials[mesh.material_index];
+            self.draw_mesh_instanced(mesh, material, uniforms, instances.clone());
+        }
     }
 }

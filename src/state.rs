@@ -367,15 +367,11 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
 
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            for mesh in &self.model.meshes {
-                let material = &self.model.materials[mesh.material_index];
-                render_pass.draw_mesh_instanced(
-                    mesh,
-                    material,
-                    &self.uniform_bind_group,
-                    0..self.instances.len() as _,
-                );
-            }
+            render_pass.draw_model_instanced(
+                &self.model,
+                &self.uniform_bind_group,
+                0..self.instances.len() as _,
+            );
         }
 
         {
@@ -407,12 +403,11 @@ impl State {
     }
 
     pub fn build_ui(&self, ui: &imgui::Ui) {
-        let window = imgui::Window::new(im_str!("WGPU Exploration"));
+        let window = imgui::Window::new(im_str!("Camera"));
         window
             .size([150.0, 250.0], Condition::FirstUseEver)
             .position([0.0, 0.0], Condition::FirstUseEver)
             .build(&ui, || {
-                ui.text(im_str!("Camera"));
                 ui.text(im_str!("Eye:"));
                 ui.text(im_str!("\tx: {}", self.camera.eye.x));
                 ui.text(im_str!("\ty: {}", self.camera.eye.y));
